@@ -1,0 +1,58 @@
+version: '3.7'
+services:
+  thumbor:
+    image: minimalcompact/thumbor:7.0.0
+    environment:
+      - AUTO_WEBP=True
+      - CORS_ALLOW_ORIGIN=*
+      - ENGINE_THREADPOOL_SIZE=${ENGINE_THREADPOOL_SIZE:-0}
+      - THUMBOR_NUM_PROCESSES=${THUMBOR_NUM_PROCESSES:-1}
+      - OPTIMIZERS=['thumbor.optimizers.gifv']
+    volumes:
+      - ./data:/data
+    restart: always
+  thumbor-cache:
+    image: minimalcompact/thumbor:7.0.0
+    environment:
+      - AUTO_WEBP=True
+      - CORS_ALLOW_ORIGIN=*
+      - ENGINE_THREADPOOL_SIZE=${ENGINE_THREADPOOL_SIZE:-0}
+      - THUMBOR_NUM_PROCESSES=${THUMBOR_NUM_PROCESSES:-1}
+      - OPTIMIZERS=['thumbor.optimizers.gifv']
+      - RESULT_STORAGE=thumbor.result_storages.no_storage
+      - RESULT_STORAGE_STORES_UNSAFE=True
+      - RESULT_STORAGE_EXPIRATION_SECONDS=3600
+      - RESULT_STORAGE_FILE_STORAGE_ROOT_PATH=/tmp/thumbor/result_storage
+      - RESULT_STORAGE=thumbor.result_storages.file_storage
+    volumes:
+      - ./data:/data
+    restart: always
+  master:
+    image: locustio/locust
+    environment:
+      - THUMBOR_DOCKER_PROCS=${THUMBOR_DOCKER_PROCS:-1}
+      - THUMBOR_NUM_PROCESSES=${THUMBOR_NUM_PROCESSES:-1}
+      - ENGINE_THREADPOOL_SIZE=${ENGINE_THREADPOOL_SIZE:-0}
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ../scripts:/mnt/locust
+      - ../reports:/opt/reports
+    ports:
+     - '8089:8089'
+    command: "-f /mnt/locust/benchmark.py
+              -H http://thumbor
+              --master
+              -r 4
+              --run-time 2m
+              --expect-workers 3
+              --only-summary
+              --csv=/opt/reports/${THUMBOR_DOCKER_PROCS}-${THUMBOR_NUM_PROCESSES}-${ENGINE_THREADPOOL_SIZE}"
+  worker:
+    image: locustio/locust
+    volumes:
+      - ../scripts:/mnt/locust
+      - ../reports:/opt/reports
+    command: "-H http://thumbor
+              -f /mnt/locust/benchmark.py
+              --worker
+              --master-host=master"
