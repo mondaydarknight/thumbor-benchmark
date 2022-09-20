@@ -23,5 +23,5 @@ class FilesizeTaskSet(TaskSet):
         self.client.get('/unsafe/filters:gifv(mp4)/https://images.mamilove.com.tw/test/product/details/1f3f1844-0cc2-11ed-9b01-0242c0a85007.gif')
 
 class Benchmark(HttpUser):
-    tasks = [SimpleTaskSet]
+    tasks = [FilesizeTaskSet]
     wait_time = between(1, 5)
